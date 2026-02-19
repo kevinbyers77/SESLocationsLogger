@@ -13,7 +13,7 @@
   const VIEW_ONLY = !!CFG.viewOnly;
 
   // Default center (Lismore)
-  const MAP_DEFAULT = { lat: -28.8125, lng: 153.2770, zoom: 13 };
+  const MAP_DEFAULT = { lat: -28.809, lng: 153.276, zoom: 13 };
 
   const CATEGORIES = ["Drain", "Boat launch", "Flood prone", "Access issue", "Other"];
 
@@ -68,6 +68,8 @@
   let markersLayer = null;
   let meMarker = null;
   let meCircle = null;
+  let markerByKey = new Map();
+  let isSyncing = false;
 
   let items = [];
   let activeCategory = "All";
@@ -122,9 +124,7 @@
 
   function mapsLink(lat, lng) {
     const q = `${lat},${lng}`;
-    return isIOS()
-      ? `https://maps.apple.com/?q=${q}`
-      : `https://maps.google.com/?q=${q}`;
+    return `https://maps.google.com/?q=${q}`;
   }
 
   function uid() {
@@ -139,6 +139,17 @@
 
   function nowISO() {
     return new Date().toISOString();
+  }
+
+  function markerKey(it) {
+    if (it && it.id) return `id:${it.id}`;
+    return `ll:${it.lat},${it.lng}`;
+  }
+
+  function toNum(v) {
+    if (v == null || v === "") return NaN;
+    const n = typeof v === "string" ? parseFloat(v) : Number(v);
+    return Number.isFinite(n) ? n : NaN;
   }
 
   // ---------- Backend ----------
@@ -165,6 +176,8 @@
 
     if (!res.ok) throw new Error(`POST failed (${res.status})`);
     const data = await res.json();
+    if (data && data.ok === false) throw new Error(data.error || "POST rejected");
+    if (data && data.error) throw new Error(data.error);
     return normalizeItem(data?.item || payload);
   }
 
@@ -175,9 +188,10 @@
     it.category = it.category || "Other";
     it.name = it.name || "";
     it.description = it.description || "";
-    it.lat = typeof it.lat === "string" ? parseFloat(it.lat) : it.lat;
-    it.lng = typeof it.lng === "string" ? parseFloat(it.lng) : it.lng;
-    it.accuracy = typeof it.accuracy === "string" ? parseFloat(it.accuracy) : it.accuracy;
+    it.lat = toNum(it.lat ?? it.latitude);
+    it.lng = toNum(it.lng ?? it.lon ?? it.longitude);
+    it.accuracy = toNum(it.accuracy);
+    it.clientId = it.clientId || "";
     return it;
   }
 
@@ -336,7 +350,9 @@
     if (!map || !markersLayer) return;
 
     markersLayer.clearLayers();
+    markerByKey.clear();
     const arr = filteredItems();
+    const bounds = [];
 
     for (const it of arr) {
       if (!isFinite(it.lat) || !isFinite(it.lng)) continue;
@@ -344,17 +360,26 @@
       const color = CATEGORY_COLORS[it.category] || CATEGORY_COLORS.Other;
       const icon = pinIcon(color);
       const link = mapsLink(it.lat, it.lng);
+      const popupDesc = trunc(it.description || "", 120);
 
       const popupHtml = `
         <div>
           <div style="font-weight:900;margin-bottom:6px">${esc(it.name || "(No name)")}</div>
           <div style="opacity:.9;margin-bottom:6px">${esc(it.category || "Other")}</div>
-          ${it.description ? `<div style="opacity:.9;margin-bottom:8px">${esc(it.description)}</div>` : ""}
+          ${popupDesc ? `<div style="opacity:.9;margin-bottom:8px">${esc(popupDesc)}</div>` : ""}
           <a href="${link}" target="_blank" rel="noopener noreferrer">Open in Maps</a>
         </div>
       `;
 
-      L.marker([it.lat, it.lng], { icon }).bindPopup(popupHtml).addTo(markersLayer);
+      const marker = L.marker([it.lat, it.lng], { icon }).bindPopup(popupHtml).addTo(markersLayer);
+      markerByKey.set(markerKey(it), marker);
+      bounds.push([it.lat, it.lng]);
+    }
+
+    if (bounds.length > 0) {
+      map.fitBounds(bounds, { padding: [28, 28], maxZoom: 15 });
+    } else {
+      map.setView([MAP_DEFAULT.lat, MAP_DEFAULT.lng], MAP_DEFAULT.zoom);
     }
   }
 
@@ -374,7 +399,7 @@
 
     for (const it of arr) {
       const link = (isFinite(it.lat) && isFinite(it.lng)) ? mapsLink(it.lat, it.lng) : "#";
-      const desc = trunc(it.description || "", 120);
+      const desc = trunc(it.description || "", 90);
       const badgeColor = CATEGORY_COLORS[it.category] || CATEGORY_COLORS.Other;
 
       const metaParts = [];
@@ -403,7 +428,9 @@
 
         if (isFinite(it.lat) && isFinite(it.lng)) {
           showTab("Map");
-          map.setView([it.lat, it.lng], Math.max(map.getZoom(), 16));
+          map.setView([it.lat, it.lng], Math.max(map.getZoom(), 14));
+          const marker = markerByKey.get(markerKey(it));
+          if (marker) marker.openPopup();
         }
       });
 
@@ -520,34 +547,46 @@
 
   async function syncQueue() {
     if (VIEW_ONLY) return; // viewers can’t sync writes
+    if (isSyncing) return;
     if (!API_TOKEN) {
       setStatus("Logger token missing.");
       return;
     }
 
+    isSyncing = true;
+    if (el.btnSync) el.btnSync.disabled = true;
     setStatus("Syncing…");
-    const queued = await queueAll();
-    if (queued.length === 0) {
-      setStatus("Nothing to sync.");
-      await updatePendingUI();
-      return;
-    }
-
-    let ok = 0, fail = 0;
-    for (const q of queued) {
-      try {
-        await postItem(q.payload);
-        await queueDelete(q.id);
-        ok++;
-      } catch {
-        fail++;
+    try {
+      const queued = await queueAll();
+      if (queued.length === 0) {
+        setStatus("Nothing to sync.");
+        await updatePendingUI();
+        return;
       }
-    }
 
-    await updatePendingUI();
-    if (fail === 0) setStatus(`Synced ${ok} queued item(s).`);
-    else setStatus(`Synced ${ok}. ${fail} still pending.`);
-    await refresh();
+      let ok = 0, fail = 0;
+      for (const q of queued) {
+        try {
+          const payload = {
+            ...q.payload,
+            clientId: q.clientId || q.payload?.clientId || q.id,
+          };
+          await postItem(payload);
+          await queueDelete(q.id);
+          ok++;
+        } catch {
+          fail++;
+        }
+      }
+
+      await updatePendingUI();
+      if (fail === 0) setStatus(`Synced ${ok} queued item(s).`);
+      else setStatus(`Synced ${ok}. ${fail} still pending.`);
+      await refresh();
+    } finally {
+      isSyncing = false;
+      if (el.btnSync) el.btnSync.disabled = false;
+    }
   }
 
   // ---------- Logging ----------
@@ -598,6 +637,7 @@
 
     const payload = {
       id: uid(),
+      clientId: uid(),
       createdAt: nowISO(),
       category: el.category?.value || "Other",
       name,
@@ -620,7 +660,12 @@
       setStatus("Saved a new location.");
     } catch (e) {
       // Queue for later
-      await queueAdd({ id: payload.id, payload, createdAt: payload.createdAt });
+      await queueAdd({
+        id: payload.clientId,
+        clientId: payload.clientId,
+        payload,
+        createdAt: payload.createdAt
+      });
       if (el.logModal?.close) el.logModal.close();
       setStatus("Saved to queue. Tap Sync when online.");
     } finally {
