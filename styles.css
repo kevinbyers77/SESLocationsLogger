@@ -295,6 +295,42 @@ a {
   margin-bottom: 0.7rem;
 }
 
+.loc-method {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.35rem;
+  margin-bottom: 0.7rem;
+  padding: 0.2rem;
+  border: 1px solid var(--border);
+  border-radius: 0.75rem;
+  background: var(--surface-2);
+}
+
+.loc-method input[type="radio"] {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.loc-method__option {
+  margin: 0;
+  display: block;
+  text-align: center;
+  padding: 0.5rem 0.6rem;
+  border-radius: 0.6rem;
+  color: var(--muted);
+  font-size: 0.9rem;
+  font-weight: 700;
+  cursor: pointer;
+  user-select: none;
+}
+
+#locMethodGps:checked + .loc-method__option,
+#locMethodPin:checked + .loc-method__option {
+  background: var(--accent);
+  color: #111;
+}
+
 .gps-actions {
   display: flex;
   gap: 0.45rem;

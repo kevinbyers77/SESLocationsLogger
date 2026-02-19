@@ -61,17 +61,12 @@
       <form method="dialog" class="log-form">
         <h2>Log location</h2>
 
-        <fieldset>
-          <legend>Location Method</legend>
-          <label>
-            <input id="locMethodGps" type="radio" name="locationMethod" value="gps" checked />
-            Use Current GPS
-          </label>
-          <label>
-            <input id="locMethodPin" type="radio" name="locationMethod" value="pin" />
-            Place Pin on Map
-          </label>
-        </fieldset>
+        <div class="loc-method" role="radiogroup" aria-label="Location Method">
+          <input id="locMethodGps" type="radio" name="locationMethod" value="gps" checked />
+          <label class="loc-method__option" for="locMethodGps">Use Current GPS</label>
+          <input id="locMethodPin" type="radio" name="locationMethod" value="pin" />
+          <label class="loc-method__option" for="locMethodPin">Place Pin on Map</label>
+        </div>
 
         <label>
           Category

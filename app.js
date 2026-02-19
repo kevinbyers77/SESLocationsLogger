@@ -78,6 +78,8 @@
   let searchTerm = "";
   let lastFix = null; // { lat, lng, accuracy, source }
   let isLogModalOpen = false;
+  let isPinPlacementActive = false;
+  let preserveLogStateOnClose = false;
   let logDraftMarker = null;
 
   // ---------- Helpers ----------
@@ -567,12 +569,33 @@
     return el.locMethodPin?.checked ? "pin" : "gps";
   }
 
+  function showLogModal() {
+    isLogModalOpen = true;
+    if (el.logModal?.showModal) el.logModal.showModal();
+  }
+
+  function beginPinPlacement() {
+    isPinPlacementActive = true;
+    showTab("Map");
+    setStatus("Pin mode active. Tap the map to place a pin.");
+    if (el.logStatus) el.logStatus.textContent = "Tap the map to place a pin.";
+
+    if (el.logModal?.open) {
+      preserveLogStateOnClose = true;
+      el.logModal.close();
+    }
+  }
+
   function updateLocationMethodUI() {
     const method = getLocationMethod();
     const isPin = method === "pin";
 
-    if (el.btnCapture) el.btnCapture.disabled = isPin;
-    if (isPin) showTab("Map");
+    if (el.btnCapture) {
+      el.btnCapture.disabled = false;
+      el.btnCapture.textContent = isPin ? "Place/Move Pin" : "Capture GPS";
+    }
+    if (isPin && !lastFix) beginPinPlacement();
+    if (!isPin) isPinPlacementActive = false;
 
     if (!lastFix && el.logStatus) {
       el.logStatus.textContent = isPin
@@ -585,7 +608,7 @@
 
   function onMapClickForLog(ev) {
     if (VIEW_ONLY) return;
-    if (!isLogModalOpen) return;
+    if (!isPinPlacementActive) return;
     if (getLocationMethod() !== "pin") return;
 
     const fix = {
@@ -596,7 +619,10 @@
     };
     setLogFix(fix);
     setLogDraftMarker(fix.lat, fix.lng, "pin");
+    isPinPlacementActive = false;
     if (el.logStatus) el.logStatus.textContent = "Pin placed. Add a name, then save.";
+    setStatus("Pin placed. Complete details and save.");
+    if (!el.logModal?.open) showLogModal();
   }
 
   // ---------- Dictation (optional best-effort) ----------
@@ -733,15 +759,19 @@
     setLogFix(null);
     clearLogDraftMarker();
     isLogModalOpen = true;
+    isPinPlacementActive = false;
 
     if (el.logStatus) el.logStatus.textContent = "Capture GPS, add a name, then save.";
     updateLocationMethodUI();
-    if (el.logModal?.showModal) el.logModal.showModal();
+    showLogModal();
   }
 
   async function handleCapture() {
     if (VIEW_ONLY) return;
-    if (getLocationMethod() !== "gps") return;
+    if (getLocationMethod() === "pin") {
+      beginPinPlacement();
+      return;
+    }
 
     try {
       if (el.logStatus) el.logStatus.textContent = "Getting GPS…";
@@ -897,6 +927,7 @@
         if (!el.locMethodGps?.checked) return;
         setLogFix(null);
         clearLogDraftMarker();
+        isPinPlacementActive = false;
         updateLocationMethodUI();
       });
 
@@ -908,13 +939,20 @@
       });
 
       el.logModal?.addEventListener("close", () => {
+        if (preserveLogStateOnClose) {
+          preserveLogStateOnClose = false;
+          isLogModalOpen = false;
+          return;
+        }
         isLogModalOpen = false;
+        isPinPlacementActive = false;
         setLogFix(null);
         clearLogDraftMarker();
       });
 
       el.logModal?.addEventListener("cancel", () => {
         isLogModalOpen = false;
+        isPinPlacementActive = false;
         setLogFix(null);
         clearLogDraftMarker();
       });
