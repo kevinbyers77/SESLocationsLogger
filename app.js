@@ -119,7 +119,7 @@
   }
 
   function trunc(s, n = 120) {
-    const t = (s || "").trim();
+    const t = String(s ?? "").trim();
     if (t.length <= n) return t;
     return t.slice(0, n - 1) + "…";
   }
