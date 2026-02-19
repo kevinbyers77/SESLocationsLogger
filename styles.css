@@ -15,6 +15,10 @@
   box-sizing: border-box;
 }
 
+html {
+  -webkit-text-size-adjust: 100%;
+}
+
 html,
 body {
   height: 100%;
@@ -151,13 +155,22 @@ h1 {
   color: #111;
 }
 
-.search-wrap input,
+.search-wrap input {
+  width: 100%;
+  padding: 0.65rem 0.7rem;
+  font-size: 16px;
+  border-radius: 0.7rem;
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  color: var(--text);
+}
+
 .log-form input,
 .log-form textarea,
 .log-form select {
   width: 100%;
   padding: 0.65rem 0.7rem;
-  font-size: 16px;
+  font-size: 17px;
   border-radius: 0.7rem;
   border: 1px solid var(--border);
   background: var(--surface-2);
