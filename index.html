@@ -17,28 +17,30 @@
   </head>
   <body>
     <div class="app">
-      <header class="topbar">
-        <div>
-          <h1>SES Locations</h1>
-          <p class="subtitle" id="subTitle">Viewer</p>
-        </div>
-        <div class="actions">
-          <button id="btnRefresh" class="btn btn-ghost" aria-label="Refresh locations">Refresh</button>
-        </div>
-      </header>
+      <div class="app-header">
+        <header class="topbar">
+          <div>
+            <h1>SES Locations</h1>
+            <p class="subtitle" id="subTitle">Viewer</p>
+          </div>
+          <div class="actions">
+            <button id="btnRefresh" class="btn btn-ghost" aria-label="Refresh locations">Refresh</button>
+          </div>
+        </header>
 
-      <p class="status-line" id="status">Loading…</p>
+        <p class="status-line" id="status">Loading…</p>
 
-      <section class="toolbar" aria-label="View and filters">
-        <div class="view-toggle" role="tablist" aria-label="View mode">
-          <button id="tabMap" class="tab" role="tab" aria-selected="true">Map</button>
-          <button id="tabList" class="tab" role="tab" aria-selected="false">List</button>
-        </div>
-        <div class="search-wrap">
-          <input id="search" type="search" placeholder="Search name or description" autocomplete="off" />
-        </div>
-        <div class="chips" id="chips" aria-label="Category filters"></div>
-      </section>
+        <section class="toolbar" aria-label="View and filters">
+          <div class="view-toggle" role="tablist" aria-label="View mode">
+            <button id="tabMap" class="tab" role="tab" aria-selected="true">Map</button>
+            <button id="tabList" class="tab" role="tab" aria-selected="false">List</button>
+          </div>
+          <div class="search-wrap">
+            <input id="search" type="search" placeholder="Search name or description" autocomplete="off" />
+          </div>
+          <div class="chips" id="chips" aria-label="Category filters"></div>
+        </section>
+      </div>
 
       <main class="content">
         <section id="mapView" class="view-pane" aria-label="Map view">
