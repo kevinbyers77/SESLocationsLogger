@@ -4,7 +4,7 @@
   --surface-2: #1f2937;
   --text: #e5e7eb;
   --muted: #9ca3af;
-  --accent: #F37021;
+  --accent: #FF6A00;
   --border: #374151;
   --chip: #334155;
   --link: #93c5fd;
@@ -185,17 +185,29 @@ h1 {
 }
 
 .chip {
-  border: 1px solid var(--border);
+  display: inline-flex;
+  align-items: center;
+  gap: 0.38rem;
+  border: 1px solid var(--chip-color, var(--border));
   border-radius: 999px;
-  background: var(--chip);
-  color: var(--text);
+  background: transparent;
+  color: var(--chip-color, var(--text));
   padding: 0.35rem 0.7rem;
   white-space: nowrap;
+  font-weight: 700;
+  fill: currentColor;
+}
+
+.chip__icon {
+  width: 0.9rem;
+  height: 0.9rem;
+  display: inline-block;
+  flex: 0 0 auto;
 }
 
 .chip[aria-pressed="true"] {
-  background: var(--accent);
-  border-color: var(--accent);
+  background: var(--chip-color, var(--accent));
+  border-color: var(--chip-color, var(--accent));
   color: #111;
 }
 

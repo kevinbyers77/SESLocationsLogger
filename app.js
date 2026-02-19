@@ -18,11 +18,12 @@
   const CATEGORIES = ["Drain", "Boat launch", "Flood prone", "Access issue", "Other"];
 
   const CATEGORY_COLORS = {
-    "Drain": "#2e6bff",
-    "Boat launch": "#25c26e",
-    "Flood prone": "#f5b942",
-    "Access issue": "#ff5a6e",
-    "Other": "#cbd6f5",
+    "All": "#FF6A00",
+    "Drain": "#2563EB",
+    "Boat launch": "#0D9488",
+    "Flood prone": "#7C3AED",
+    "Access issue": "#E11D48",
+    "Other": "#6B7280",
   };
 
   // UI elements (safe lookups)
@@ -188,6 +189,34 @@
     return `ll:${it.lat},${it.lng}`;
   }
 
+  function categoryColor(category) {
+    return CATEGORY_COLORS[category] || CATEGORY_COLORS.Other;
+  }
+
+  function contrastText(hexColor) {
+    const hex = String(hexColor || "").replace("#", "");
+    if (!/^[0-9a-fA-F]{6}$/.test(hex)) return "#111";
+    const r = parseInt(hex.slice(0, 2), 16);
+    const g = parseInt(hex.slice(2, 4), 16);
+    const b = parseInt(hex.slice(4, 6), 16);
+    const yiq = (r * 299 + g * 587 + b * 114) / 1000;
+    return yiq >= 140 ? "#111" : "#fff";
+  }
+
+  function categoryIconSvg(category, color = "currentColor", size = 14) {
+    const common = `fill="none" stroke="${color}" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"`;
+    const byCategory = {
+      "All": `<circle cx="7" cy="7" r="2.1" fill="${color}"/>`,
+      "Drain": `<path d="M7 1.6C7 1.6 3.8 5 3.8 7.4A3.2 3.2 0 0 0 7 10.6a3.2 3.2 0 0 0 3.2-3.2C10.2 5 7 1.6 7 1.6z" ${common}/>`,
+      "Boat launch": `<path d="M2 8.2h10L10.9 5H3.1L2 8.2z" ${common}/><path d="M2 10.6c1 .8 1.8.8 2.8 0 1 .8 1.8.8 2.8 0 1 .8 1.8.8 2.8 0" ${common}/>`,
+      "Flood prone": `<path d="M1.8 5.8c1 .9 1.9.9 2.9 0 1 .9 1.9.9 2.9 0 1 .9 1.9.9 2.9 0" ${common}/><path d="M1.8 8.9c1 .9 1.9.9 2.9 0 1 .9 1.9.9 2.9 0 1 .9 1.9.9 2.9 0" ${common}/>`,
+      "Access issue": `<path d="M7 1.6l5 8.8H2L7 1.6z" ${common}/><path d="M7 4.8v2.5" ${common}/><circle cx="7" cy="8.9" r=".7" fill="${color}"/>`,
+      "Other": `<circle cx="7" cy="7" r="2.2" fill="${color}"/>`,
+    };
+    const glyph = byCategory[category] || byCategory.Other;
+    return `<svg class="chip__icon" viewBox="0 0 14 14" width="${size}" height="${size}" aria-hidden="true">${glyph}</svg>`;
+  }
+
   function toNum(v) {
     if (v == null || v === "") return NaN;
     const n = typeof v === "string" ? parseFloat(v.trim().replace(",", ".")) : Number(v);
@@ -347,18 +376,20 @@
     markersLayer = L.layerGroup().addTo(map);
   }
 
-  function pinIcon(color) {
+  function pinIcon(color, category = "Other") {
+    const iconGlyph = categoryIconSvg(category, "#ffffff", 11).replace('class="chip__icon" ', "").replace("<svg ", '<svg x="8.5" y="9" ');
     const svg = encodeURIComponent(`
-      <svg xmlns="http://www.w3.org/2000/svg" width="28" height="40" viewBox="0 0 28 40">
-        <path d="M14 0C6.8 0 1 5.8 1 13c0 10.4 13 27 13 27s13-16.6 13-27C27 5.8 21.2 0 14 0z" fill="${color}"/>
-        <circle cx="14" cy="13" r="5" fill="#0f1a2e"/>
+      <svg xmlns="http://www.w3.org/2000/svg" width="30" height="42" viewBox="0 0 30 42">
+        <path d="M15 1.2C7.3 1.2 1 7.5 1 15.2c0 11.2 14 25.6 14 25.6s14-14.4 14-25.6C29 7.5 22.7 1.2 15 1.2z" fill="${color}"/>
+        <circle cx="15" cy="15.2" r="6.6" fill="rgba(255,255,255,0.22)"/>
+        ${iconGlyph}
       </svg>
     `);
 
     return L.icon({
       iconUrl: "data:image/svg+xml;charset=UTF-8," + svg,
-      iconSize: [28, 40],
-      iconAnchor: [14, 40],
+      iconSize: [30, 42],
+      iconAnchor: [15, 42],
       popupAnchor: [0, -36],
     });
   }
@@ -384,7 +415,7 @@
   function setLogDraftMarker(lat, lng, source) {
     if (!map) return;
     const iconColor = source === "pin" ? "#f5b942" : "#25c26e";
-    const icon = pinIcon(iconColor);
+    const icon = pinIcon(iconColor, "Other");
     const ll = [lat, lng];
 
     if (!logDraftMarker) {
@@ -424,8 +455,10 @@
       const b = document.createElement("button");
       b.type = "button";
       b.className = "chip";
+      const color = categoryColor(c);
+      b.style.setProperty("--chip-color", color);
       b.setAttribute("aria-pressed", c === activeCategory ? "true" : "false");
-      b.textContent = c;
+      b.innerHTML = `${categoryIconSvg(c)}<span>${esc(c)}</span>`;
       b.addEventListener("click", () => {
         activeCategory = c;
         renderChips();
@@ -447,8 +480,8 @@
     for (const it of arr) {
       if (!isFinite(it.lat) || !isFinite(it.lng)) continue;
 
-      const color = CATEGORY_COLORS[it.category] || CATEGORY_COLORS.Other;
-      const icon = pinIcon(color);
+      const color = categoryColor(it.category);
+      const icon = pinIcon(color, it.category);
       const link = mapsLink(it.lat, it.lng);
       const popupDesc = trunc(it.description || "", 120);
 
@@ -490,7 +523,8 @@
     for (const it of arr) {
       const link = (isFinite(it.lat) && isFinite(it.lng)) ? mapsLink(it.lat, it.lng) : "#";
       const desc = trunc(it.description || "", 90);
-      const badgeColor = CATEGORY_COLORS[it.category] || CATEGORY_COLORS.Other;
+      const badgeColor = categoryColor(it.category);
+      const badgeText = contrastText(badgeColor);
 
       const metaParts = [];
       if (it.createdAt) {
@@ -504,7 +538,7 @@
       card.innerHTML = `
         <div class="item__top">
           <div class="item__name">${esc(it.name || "(No name)")}</div>
-          <div class="badge" style="background:${badgeColor}">${esc(it.category || "Other")}</div>
+          <div class="badge" style="background:${badgeColor};color:${badgeText}">${esc(it.category || "Other")}</div>
         </div>
         <div class="item__desc">${esc(desc || "(No description)")}</div>
         ${meta ? `<div class="item__meta">${esc(meta)}</div>` : ""}
