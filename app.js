@@ -141,6 +141,29 @@
     return new Date().toISOString();
   }
 
+  function normText(v) {
+    return String(v || "").trim().toLowerCase();
+  }
+
+  function nearlyEqual(a, b, epsilon = 0.000001) {
+    if (!Number.isFinite(a) || !Number.isFinite(b)) return false;
+    return Math.abs(a - b) <= epsilon;
+  }
+
+  function sameItem(a, b) {
+    const aClientId = a?.clientId || a?.clientid || "";
+    const bClientId = b?.clientId || b?.clientid || "";
+    if (aClientId && bClientId && aClientId === bClientId) return true;
+
+    return (
+      normText(a?.name) === normText(b?.name) &&
+      normText(a?.category) === normText(b?.category) &&
+      nearlyEqual(toNum(a?.lat), toNum(b?.lat)) &&
+      nearlyEqual(toNum(a?.lng), toNum(b?.lng)) &&
+      normText(a?.createdAt) === normText(b?.createdAt)
+    );
+  }
+
   function markerKey(it) {
     if (it && it.id) return `id:${it.id}`;
     return `ll:${it.lat},${it.lng}`;
@@ -262,6 +285,15 @@
     const target = all.find((q) => (q.clientId || q.payload?.clientId) === clientId);
     if (!target) return;
     await queueDelete(target.id);
+  }
+
+  async function appearsOnServer(payload) {
+    try {
+      const serverItems = await fetchItems();
+      return serverItems.some((it) => sameItem(it, payload));
+    } catch {
+      return false;
+    }
   }
 
   async function updatePendingUI() {
@@ -587,7 +619,8 @@
       for (const q of queued) {
         try {
           const payload = {
-            ...q.payload,
+            ...(q.payload || {}),
+            ...(q.payload ? {} : q),
             clientId: q.clientId || q.payload?.clientId || q.id,
           };
           const saved = await postItem(payload);
@@ -598,7 +631,19 @@
           }
           ok++;
         } catch {
-          fail++;
+          const payload = {
+            ...(q.payload || {}),
+            ...(q.payload ? {} : q),
+            clientId: q.clientId || q.payload?.clientId || q.id,
+          };
+          const confirmed = await appearsOnServer(payload);
+          if (confirmed) {
+            await queueDelete(q.id);
+            await queueDeleteByClientId(payload.clientId);
+            ok++;
+          } else {
+            fail++;
+          }
         }
       }
 
