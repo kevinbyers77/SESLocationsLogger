@@ -1,0 +1,118 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#111827" />
+    <title>SES Locations Logger</title>
+    <link rel="manifest" href="manifest.json" />
+    <link rel="icon" href="icons/icon-192.svg" type="image/svg+xml" />
+    <link
+      rel="stylesheet"
+      href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+      integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
+      crossorigin=""
+    />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <div class="app">
+      <header class="topbar">
+        <div>
+          <h1>SES Locations</h1>
+          <p class="subtitle" id="subTitle">Logger</p>
+        </div>
+        <div class="actions">
+          <button id="btnRefresh" class="btn btn-ghost" aria-label="Refresh locations">Refresh</button>
+          <button id="btnSync" class="btn btn-ghost" aria-label="Sync queued items">Sync</button>
+          <button id="btnLog" class="btn btn-subtle" aria-label="Log new location">+ Log</button>
+        </div>
+      </header>
+
+      <div class="meta-row">
+        <p class="status-line" id="status">Loading…</p>
+        <p class="hint" id="pendingPill" hidden>Pending sync: <span id="pendingCount">0</span></p>
+      </div>
+
+      <section class="toolbar" aria-label="View and filters">
+        <div class="view-toggle" role="tablist" aria-label="View mode">
+          <button id="tabMap" class="tab" role="tab" aria-selected="true">Map</button>
+          <button id="tabList" class="tab" role="tab" aria-selected="false">List</button>
+        </div>
+        <div class="search-wrap">
+          <input id="search" type="search" placeholder="Search name or description" autocomplete="off" />
+        </div>
+        <div class="chips" id="chips" aria-label="Category filters"></div>
+      </section>
+
+      <main class="content">
+        <section id="mapView" class="view-pane" aria-label="Map view">
+          <div id="map"></div>
+        </section>
+        <section id="listView" class="view-pane" aria-label="List view" hidden>
+          <div id="list" class="location-list"></div>
+        </section>
+      </main>
+    </div>
+
+    <dialog id="logModal" class="modal">
+      <form method="dialog" class="log-form">
+        <h2>Log location</h2>
+
+        <label>
+          Category
+          <select id="category">
+            <option>Drain</option>
+            <option>Boat launch</option>
+            <option>Flood prone</option>
+            <option>Access issue</option>
+            <option>Other</option>
+          </select>
+        </label>
+
+        <label>
+          Name *
+          <input id="name" type="text" maxlength="140" required />
+        </label>
+
+        <label>
+          Description
+          <textarea id="description" rows="3" maxlength="500"></textarea>
+        </label>
+
+        <div class="gps-actions">
+          <button type="button" id="btnCapture" class="btn">Capture GPS</button>
+          <button type="button" id="btnOpenMap" class="btn btn-ghost" disabled>Open map</button>
+        </div>
+
+        <div class="gps-readout">
+          <span>Lat: <strong id="latVal">—</strong></span>
+          <span>Lng: <strong id="lngVal">—</strong></span>
+          <span>Acc: <strong id="accVal">—</strong></span>
+        </div>
+
+        <p class="hint" id="logStatus">Capture GPS, add a name, then save.</p>
+
+        <div class="modal-actions">
+          <button type="button" class="btn btn-ghost" onclick="this.closest('dialog').close()">Cancel</button>
+          <button type="button" id="btnSave" class="btn" disabled>Save</button>
+        </div>
+      </form>
+    </dialog>
+
+    <script>
+      window.SESLOC_CONFIG = {
+        viewOnly: false,
+        backendUrl: "https://script.google.com/macros/s/AKfycbxSOQig4m5igbKtpX9ueXMMLB_GPGqUu1q1yv3BqKS8xZ5oV8fsgZMY6nQVDHIcckSK/exec",
+        token: "rT9kP3vM7qL2nX5sA8dF1hJ6zC4uY0wE",
+        createdBy: ""
+      };
+    </script>
+    <script
+      src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+      integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
+      crossorigin=""
+    ></script>
+    <script src="app.js"></script>
+  </body>
+</html>

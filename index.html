@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#111827" />
+    <title>SES Locations Viewer</title>
+    <link rel="manifest" href="manifest.json" />
+    <link rel="icon" href="icons/icon-192.svg" type="image/svg+xml" />
+    <link
+      rel="stylesheet"
+      href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+      integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
+      crossorigin=""
+    />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <div class="app">
+      <header class="topbar">
+        <div>
+          <h1>SES Locations</h1>
+          <p class="subtitle" id="subTitle">Viewer</p>
+        </div>
+        <div class="actions">
+          <button id="btnRefresh" class="btn btn-ghost" aria-label="Refresh locations">Refresh</button>
+        </div>
+      </header>
+
+      <p class="status-line" id="status">Loading…</p>
+
+      <section class="toolbar" aria-label="View and filters">
+        <div class="view-toggle" role="tablist" aria-label="View mode">
+          <button id="tabMap" class="tab" role="tab" aria-selected="true">Map</button>
+          <button id="tabList" class="tab" role="tab" aria-selected="false">List</button>
+        </div>
+        <div class="search-wrap">
+          <input id="search" type="search" placeholder="Search name or description" autocomplete="off" />
+        </div>
+        <div class="chips" id="chips" aria-label="Category filters"></div>
+      </section>
+
+      <main class="content">
+        <section id="mapView" class="view-pane" aria-label="Map view">
+          <div id="map"></div>
+        </section>
+        <section id="listView" class="view-pane" aria-label="List view" hidden>
+          <div id="list" class="location-list"></div>
+        </section>
+      </main>
+    </div>
+
+    <script>
+      window.SESLOC_CONFIG = {
+        viewOnly: true,
+        backendUrl: "https://script.google.com/macros/s/AKfycbxSOQig4m5igbKtpX9ueXMMLB_GPGqUu1q1yv3BqKS8xZ5oV8fsgZMY6nQVDHIcckSK/exec",
+        token: "",
+        createdBy: ""
+      };
+    </script>
+    <script
+      src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+      integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
+      crossorigin=""
+    ></script>
+    <script src="app.js"></script>
+  </body>
+</html>
