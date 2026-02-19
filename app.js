@@ -203,20 +203,6 @@
     return yiq >= 140 ? "#111" : "#fff";
   }
 
-  function categoryIconSvg(category, color = "currentColor", size = 14) {
-    const common = `fill="none" stroke="${color}" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"`;
-    const byCategory = {
-      "All": `<circle cx="7" cy="7" r="2.1" fill="${color}"/>`,
-      "Drain": `<path d="M7 1.6C7 1.6 3.8 5 3.8 7.4A3.2 3.2 0 0 0 7 10.6a3.2 3.2 0 0 0 3.2-3.2C10.2 5 7 1.6 7 1.6z" ${common}/>`,
-      "Boat launch": `<path d="M2 8.2h10L10.9 5H3.1L2 8.2z" ${common}/><path d="M2 10.6c1 .8 1.8.8 2.8 0 1 .8 1.8.8 2.8 0 1 .8 1.8.8 2.8 0" ${common}/>`,
-      "Flood prone": `<path d="M1.8 5.8c1 .9 1.9.9 2.9 0 1 .9 1.9.9 2.9 0 1 .9 1.9.9 2.9 0" ${common}/><path d="M1.8 8.9c1 .9 1.9.9 2.9 0 1 .9 1.9.9 2.9 0 1 .9 1.9.9 2.9 0" ${common}/>`,
-      "Access issue": `<path d="M7 1.6l5 8.8H2L7 1.6z" ${common}/><path d="M7 4.8v2.5" ${common}/><circle cx="7" cy="8.9" r=".7" fill="${color}"/>`,
-      "Other": `<circle cx="7" cy="7" r="2.2" fill="${color}"/>`,
-    };
-    const glyph = byCategory[category] || byCategory.Other;
-    return `<svg class="chip__icon" viewBox="0 0 14 14" width="${size}" height="${size}" aria-hidden="true">${glyph}</svg>`;
-  }
-
   function toNum(v) {
     if (v == null || v === "") return NaN;
     const n = typeof v === "string" ? parseFloat(v.trim().replace(",", ".")) : Number(v);
@@ -376,18 +362,22 @@
     markersLayer = L.layerGroup().addTo(map);
   }
 
-  function pinIcon(color, category = "Other") {
-    const iconGlyph = categoryIconSvg(category, "#ffffff", 11).replace('class="chip__icon" ', "").replace("<svg ", '<svg x="8.5" y="9" ');
-    const svg = encodeURIComponent(`
-      <svg xmlns="http://www.w3.org/2000/svg" width="30" height="42" viewBox="0 0 30 42">
-        <path d="M15 1.2C7.3 1.2 1 7.5 1 15.2c0 11.2 14 25.6 14 25.6s14-14.4 14-25.6C29 7.5 22.7 1.2 15 1.2z" fill="${color}"/>
-        <circle cx="15" cy="15.2" r="6.6" fill="rgba(255,255,255,0.22)"/>
-        ${iconGlyph}
+  function markerIconForCategory(category) {
+    const color = categoryColor(category || "Other");
+    const svg = `
+      <svg xmlns="http://www.w3.org/2000/svg" width="30" height="42" viewBox="0 0 30 42" aria-hidden="true">
+        <defs>
+          <filter id="pinShadow" x="-40%" y="-30%" width="180%" height="190%">
+            <feDropShadow dx="0" dy="1.2" stdDeviation="1.4" flood-color="#000000" flood-opacity="0.42"/>
+          </filter>
+        </defs>
+        <path filter="url(#pinShadow)" d="M15 1.2C7.3 1.2 1 7.5 1 15.2c0 11.2 14 25.6 14 25.6s14-14.4 14-25.6C29 7.5 22.7 1.2 15 1.2z" fill="${color}" stroke="#0f172a" stroke-width="1.5"/>
       </svg>
-    `);
+    `;
 
-    return L.icon({
-      iconUrl: "data:image/svg+xml;charset=UTF-8," + svg,
+    return L.divIcon({
+      className: "",
+      html: svg,
       iconSize: [30, 42],
       iconAnchor: [15, 42],
       popupAnchor: [0, -36],
@@ -414,8 +404,8 @@
 
   function setLogDraftMarker(lat, lng, source) {
     if (!map) return;
-    const iconColor = source === "pin" ? "#f5b942" : "#25c26e";
-    const icon = pinIcon(iconColor, "Other");
+    const draftCategory = source === "pin" ? "Access issue" : "Boat launch";
+    const icon = markerIconForCategory(draftCategory);
     const ll = [lat, lng];
 
     if (!logDraftMarker) {
@@ -492,8 +482,7 @@
     for (const it of arr) {
       if (!isFinite(it.lat) || !isFinite(it.lng)) continue;
 
-      const color = categoryColor(it.category);
-      const icon = pinIcon(color, it.category);
+      const icon = markerIconForCategory(it.category);
       const link = mapsLink(it.lat, it.lng);
       const popupDesc = trunc(it.description || "", 120);
 
