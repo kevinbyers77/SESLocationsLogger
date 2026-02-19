@@ -161,12 +161,25 @@
     const bClientId = b?.clientId || b?.clientid || "";
     if (aClientId && bClientId && aClientId === bClientId) return true;
 
+    const aCreated = a?.createdAt;
+    const bCreated = b?.createdAt;
+    let createdAtMatch = normText(aCreated) === normText(bCreated);
+    if (!createdAtMatch) {
+      const ta = Date.parse(String(aCreated || ""));
+      const tb = Date.parse(String(bCreated || ""));
+      if (Number.isFinite(ta) && Number.isFinite(tb)) {
+        // Sheets can normalize timestamps on write/read; tolerate small drift/format changes.
+        createdAtMatch = Math.abs(ta - tb) <= 60000;
+      }
+    }
+
     return (
       normText(a?.name) === normText(b?.name) &&
       normText(a?.category) === normText(b?.category) &&
+      normText(a?.description) === normText(b?.description) &&
       nearlyEqual(toNum(a?.lat), toNum(b?.lat)) &&
       nearlyEqual(toNum(a?.lng), toNum(b?.lng)) &&
-      normText(a?.createdAt) === normText(b?.createdAt)
+      createdAtMatch
     );
   }
 
@@ -717,7 +730,7 @@
             await queueDeleteByClientId(saved.clientId);
           }
           ok++;
-        } catch {
+        } catch (err) {
           const payload = {
             ...(q.payload || {}),
             ...(q.payload ? {} : q),
@@ -729,6 +742,9 @@
             await queueDeleteByClientId(payload.clientId);
             ok++;
           } else {
+            if (el.logStatus && err?.message) {
+              el.logStatus.textContent = `Sync failed: ${err.message}`;
+            }
             fail++;
           }
         }
@@ -840,6 +856,9 @@
         clearLogDraftMarker();
         setStatus("Saved.");
       } else {
+        if (el.logStatus) {
+          el.logStatus.textContent = `Save queued: ${e.message || "Network/backend error"}`;
+        }
         await queueAdd({
           id: payload.clientId,
           clientId: payload.clientId,
