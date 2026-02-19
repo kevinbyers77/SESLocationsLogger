@@ -721,21 +721,31 @@
 
     try {
       const saved = await postItem(payload);
+      await queueDeleteByClientId(payload.clientId);
       items = [saved, ...items];
       renderMap();
       renderList();
       if (el.logModal?.close) el.logModal.close();
       setStatus("Saved a new location.");
     } catch (e) {
-      // Queue for later
-      await queueAdd({
-        id: payload.clientId,
-        clientId: payload.clientId,
-        payload,
-        createdAt: payload.createdAt
-      });
-      if (el.logModal?.close) el.logModal.close();
-      setStatus("Saved to queue. Tap Sync when online.");
+      // Some Apps Script setups can write successfully but still fail response parsing/CORS on client.
+      // If the item is already present on server, do not queue it again.
+      const confirmed = await appearsOnServer(payload);
+      if (confirmed) {
+        await queueDeleteByClientId(payload.clientId);
+        await refresh();
+        if (el.logModal?.close) el.logModal.close();
+        setStatus("Saved.");
+      } else {
+        await queueAdd({
+          id: payload.clientId,
+          clientId: payload.clientId,
+          payload,
+          createdAt: payload.createdAt
+        });
+        if (el.logModal?.close) el.logModal.close();
+        setStatus("Saved to queue. Tap Sync when online.");
+      }
     } finally {
       if (el.btnSave) el.btnSave.disabled = false;
     }
