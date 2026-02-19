@@ -142,17 +142,9 @@
   }
 
   // ---------- Backend ----------
-  function buildBackendUrl(includeToken = false) {
-    const url = new URL(BACKEND_URL);
-    if (includeToken && API_TOKEN) url.searchParams.set("token", API_TOKEN);
-    return url.toString();
-  }
-
   async function fetchItems() {
     if (!BACKEND_URL) throw new Error("Backend URL not set");
-    const url = buildBackendUrl(false);
-
-    const res = await fetch(url, { method: "GET", cache: "no-store" });
+    const res = await fetch(BACKEND_URL, { method: "GET" });
     if (!res.ok) throw new Error(`GET failed (${res.status})`);
 
     const data = await res.json();
@@ -164,7 +156,7 @@
     if (!BACKEND_URL) throw new Error("Backend URL not set");
     if (!API_TOKEN) throw new Error("Token missing (logger only)");
 
-    const url = buildBackendUrl(true);
+    const url = `${BACKEND_URL}?token=${encodeURIComponent(API_TOKEN)}`;
     const res = await fetch(url, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
