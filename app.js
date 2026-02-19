@@ -365,21 +365,21 @@
   function markerIconForCategory(category) {
     const color = categoryColor(category || "Other");
     const svg = `
-      <svg xmlns="http://www.w3.org/2000/svg" width="30" height="42" viewBox="0 0 30 42" aria-hidden="true">
+      <svg xmlns="http://www.w3.org/2000/svg" width="30" height="44" viewBox="0 0 30 44" aria-hidden="true">
         <defs>
           <filter id="pinShadow" x="-40%" y="-30%" width="180%" height="190%">
             <feDropShadow dx="0" dy="1.2" stdDeviation="1.4" flood-color="#000000" flood-opacity="0.42"/>
           </filter>
         </defs>
-        <path filter="url(#pinShadow)" d="M15 1.2C7.3 1.2 1 7.5 1 15.2c0 11.2 14 25.6 14 25.6s14-14.4 14-25.6C29 7.5 22.7 1.2 15 1.2z" fill="${color}" stroke="#0f172a" stroke-width="1.5"/>
+        <path filter="url(#pinShadow)" d="M15 2.2C8.6 2.2 3.2 7.4 3.2 13.9c0 4.5 2.2 8.5 5.4 13 2.8 3.9 5.8 8 6.4 14.9.6-6.9 3.6-11 6.4-14.9 3.2-4.5 5.4-8.5 5.4-13C26.8 7.4 21.4 2.2 15 2.2z" fill="${color}" stroke="#0f172a" stroke-width="1.5"/>
       </svg>
     `;
 
     return L.divIcon({
       className: "",
       html: svg,
-      iconSize: [30, 42],
-      iconAnchor: [15, 42],
+      iconSize: [30, 44],
+      iconAnchor: [15, 44],
       popupAnchor: [0, -36],
     });
   }
