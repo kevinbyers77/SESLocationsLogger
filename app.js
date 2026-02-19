@@ -446,10 +446,22 @@
     });
   }
 
+  function categoryCounts() {
+    const counts = { All: items.length };
+    for (const c of CATEGORIES) counts[c] = 0;
+
+    for (const it of items) {
+      const c = CATEGORIES.includes(it.category) ? it.category : "Other";
+      counts[c] = (counts[c] || 0) + 1;
+    }
+    return counts;
+  }
+
   function renderChips() {
     if (!el.chips) return;
     el.chips.innerHTML = "";
 
+    const counts = categoryCounts();
     const all = ["All", ...CATEGORIES];
     for (const c of all) {
       const b = document.createElement("button");
@@ -458,7 +470,7 @@
       const color = categoryColor(c);
       b.style.setProperty("--chip-color", color);
       b.setAttribute("aria-pressed", c === activeCategory ? "true" : "false");
-      b.innerHTML = `${categoryIconSvg(c)}<span>${esc(c)}</span>`;
+      b.textContent = `${c} (${counts[c] || 0})`;
       b.addEventListener("click", () => {
         activeCategory = c;
         renderChips();
@@ -722,6 +734,7 @@
       arr.sort((a, b) => (b.createdAt || "").localeCompare(a.createdAt || ""));
       items = arr;
       await reconcileQueueWithLoadedItems();
+      renderChips();
       renderMap();
       renderList();
       setStatus(`Loaded ${items.length} locations.`);
@@ -874,6 +887,7 @@
       const saved = await postItem(payload);
       await queueDeleteByClientId(payload.clientId);
       items = [saved, ...items];
+      renderChips();
       renderMap();
       renderList();
       if (el.logModal?.close) el.logModal.close();

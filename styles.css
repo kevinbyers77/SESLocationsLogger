@@ -187,22 +187,14 @@ h1 {
 .chip {
   display: inline-flex;
   align-items: center;
-  gap: 0.38rem;
   border: 1px solid var(--chip-color, var(--border));
+  border-width: 2px;
   border-radius: 999px;
-  background: transparent;
-  color: var(--chip-color, var(--text));
+  background: var(--chip);
+  color: #fff;
   padding: 0.35rem 0.7rem;
   white-space: nowrap;
   font-weight: 700;
-  fill: currentColor;
-}
-
-.chip__icon {
-  width: 0.9rem;
-  height: 0.9rem;
-  display: inline-block;
-  flex: 0 0 auto;
 }
 
 .chip[aria-pressed="true"] {
