@@ -148,8 +148,18 @@
 
   function toNum(v) {
     if (v == null || v === "") return NaN;
-    const n = typeof v === "string" ? parseFloat(v) : Number(v);
+    const n = typeof v === "string" ? parseFloat(v.trim().replace(",", ".")) : Number(v);
     return Number.isFinite(n) ? n : NaN;
+  }
+
+  function valueByKey(obj, keys) {
+    if (!obj || typeof obj !== "object") return undefined;
+    const entries = Object.entries(obj);
+    for (const key of keys) {
+      const hit = entries.find(([k]) => String(k).trim().toLowerCase() === key);
+      if (hit) return hit[1];
+    }
+    return undefined;
   }
 
   // ---------- Backend ----------
@@ -183,15 +193,15 @@
 
   function normalizeItem(x) {
     const it = { ...x };
-    it.id = it.id || it._id || "";
-    it.createdAt = it.createdAt || it.timestamp || "";
-    it.category = it.category || "Other";
-    it.name = it.name || "";
-    it.description = it.description || "";
-    it.lat = toNum(it.lat ?? it.latitude);
-    it.lng = toNum(it.lng ?? it.lon ?? it.longitude);
-    it.accuracy = toNum(it.accuracy);
-    it.clientId = it.clientId || "";
+    it.id = valueByKey(it, ["id", "_id"]) || "";
+    it.createdAt = valueByKey(it, ["createdat", "timestamp", "created_at"]) || "";
+    it.category = valueByKey(it, ["category", "type"]) || "Other";
+    it.name = valueByKey(it, ["name", "title"]) || "";
+    it.description = valueByKey(it, ["description", "desc", "details", "notes"]) || "";
+    it.lat = toNum(valueByKey(it, ["lat", "latitude", "y"]));
+    it.lng = toNum(valueByKey(it, ["lng", "lon", "longitude", "long", "x"]));
+    it.accuracy = toNum(valueByKey(it, ["accuracy", "acc"]));
+    it.clientId = valueByKey(it, ["clientid", "client_id"]) || "";
     return it;
   }
 
@@ -244,6 +254,14 @@
       tx.onerror = () => reject(tx.error);
     });
     await updatePendingUI();
+  }
+
+  async function queueDeleteByClientId(clientId) {
+    if (!clientId) return;
+    const all = await queueAll();
+    const target = all.find((q) => (q.clientId || q.payload?.clientId) === clientId);
+    if (!target) return;
+    await queueDelete(target.id);
   }
 
   async function updatePendingUI() {
@@ -537,6 +555,7 @@
       const arr = await fetchItems();
       arr.sort((a, b) => (b.createdAt || "").localeCompare(a.createdAt || ""));
       items = arr;
+      await reconcileQueueWithLoadedItems();
       renderMap();
       renderList();
       setStatus(`Loaded ${items.length} locations.`);
@@ -571,8 +590,12 @@
             ...q.payload,
             clientId: q.clientId || q.payload?.clientId || q.id,
           };
-          await postItem(payload);
+          const saved = await postItem(payload);
           await queueDelete(q.id);
+          await queueDeleteByClientId(payload.clientId);
+          if (saved?.clientId) {
+            await queueDeleteByClientId(saved.clientId);
+          }
           ok++;
         } catch {
           fail++;
@@ -671,6 +694,28 @@
     } finally {
       if (el.btnSave) el.btnSave.disabled = false;
     }
+  }
+
+  async function reconcileQueueWithLoadedItems() {
+    if (VIEW_ONLY) return;
+    const loadedClientIds = new Set(
+      items
+        .map((it) => it.clientId)
+        .filter((v) => typeof v === "string" && v.trim() !== "")
+    );
+    if (loadedClientIds.size === 0) {
+      await updatePendingUI();
+      return;
+    }
+
+    const queued = await queueAll();
+    for (const q of queued) {
+      const qClientId = q.clientId || q.payload?.clientId;
+      if (qClientId && loadedClientIds.has(qClientId)) {
+        await queueDelete(q.id);
+      }
+    }
+    await updatePendingUI();
   }
 
   // ---------- “Center on me” ----------
