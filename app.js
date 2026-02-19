@@ -47,6 +47,8 @@
     // Logger UI (may not exist on viewer page)
     btnLog: $("btnLog"),
     logModal: $("logModal"),
+    locMethodGps: $("locMethodGps"),
+    locMethodPin: $("locMethodPin"),
     category: $("category"),
     name: $("name"),
     description: $("description"),
@@ -74,7 +76,9 @@
   let items = [];
   let activeCategory = "All";
   let searchTerm = "";
-  let lastFix = null; // { lat, lng, accuracy }
+  let lastFix = null; // { lat, lng, accuracy, source }
+  let isLogModalOpen = false;
+  let logDraftMarker = null;
 
   // ---------- Helpers ----------
   function setSubTitle() {
@@ -224,6 +228,7 @@
     it.lat = toNum(valueByKey(it, ["lat", "latitude", "y"]));
     it.lng = toNum(valueByKey(it, ["lng", "lon", "longitude", "long", "x"]));
     it.accuracy = toNum(valueByKey(it, ["accuracy", "acc"]));
+    it.source = valueByKey(it, ["source"]) || "";
     it.clientId = valueByKey(it, ["clientid", "client_id"]) || "";
     return it;
   }
@@ -359,6 +364,26 @@
       meCircle.setLatLng(ll);
       meCircle.setRadius(Math.max(accuracy || 0, 5));
     }
+  }
+
+  function setLogDraftMarker(lat, lng, source) {
+    if (!map) return;
+    const iconColor = source === "pin" ? "#f5b942" : "#25c26e";
+    const icon = pinIcon(iconColor);
+    const ll = [lat, lng];
+
+    if (!logDraftMarker) {
+      logDraftMarker = L.marker(ll, { icon, interactive: false }).addTo(map);
+    } else {
+      logDraftMarker.setLatLng(ll);
+      logDraftMarker.setIcon(icon);
+    }
+  }
+
+  function clearLogDraftMarker() {
+    if (!map || !logDraftMarker) return;
+    map.removeLayer(logDraftMarker);
+    logDraftMarker = null;
   }
 
   // ---------- Filter + render ----------
@@ -538,6 +563,42 @@
     if (el.btnSave) el.btnSave.disabled = !(okFix && okName);
   }
 
+  function getLocationMethod() {
+    return el.locMethodPin?.checked ? "pin" : "gps";
+  }
+
+  function updateLocationMethodUI() {
+    const method = getLocationMethod();
+    const isPin = method === "pin";
+
+    if (el.btnCapture) el.btnCapture.disabled = isPin;
+    if (isPin) showTab("Map");
+
+    if (!lastFix && el.logStatus) {
+      el.logStatus.textContent = isPin
+        ? "Tap the map to place a pin."
+        : "Capture GPS, add a name, then save.";
+    }
+
+    updateSaveEnabled();
+  }
+
+  function onMapClickForLog(ev) {
+    if (VIEW_ONLY) return;
+    if (!isLogModalOpen) return;
+    if (getLocationMethod() !== "pin") return;
+
+    const fix = {
+      lat: round6(ev.latlng.lat),
+      lng: round6(ev.latlng.lng),
+      accuracy: null,
+      source: "pin",
+    };
+    setLogFix(fix);
+    setLogDraftMarker(fix.lat, fix.lng, "pin");
+    if (el.logStatus) el.logStatus.textContent = "Pin placed. Add a name, then save.";
+  }
+
   // ---------- Dictation (optional best-effort) ----------
   function startDictation() {
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -667,19 +728,28 @@
 
     if (el.name) el.name.value = "";
     if (el.description) el.description.value = "";
+    if (el.locMethodGps) el.locMethodGps.checked = true;
+    if (el.locMethodPin) el.locMethodPin.checked = false;
     setLogFix(null);
+    clearLogDraftMarker();
+    isLogModalOpen = true;
 
     if (el.logStatus) el.logStatus.textContent = "Capture GPS, add a name, then save.";
+    updateLocationMethodUI();
     if (el.logModal?.showModal) el.logModal.showModal();
   }
 
   async function handleCapture() {
     if (VIEW_ONLY) return;
+    if (getLocationMethod() !== "gps") return;
 
     try {
       if (el.logStatus) el.logStatus.textContent = "Getting GPS…";
       const fix = await captureGPS();
+      fix.source = "gps";
       setLogFix(fix);
+      clearLogDraftMarker();
+      setLogDraftMarker(fix.lat, fix.lng, "gps");
       setMeMarker(fix.lat, fix.lng, fix.accuracy);
       if (map) map.setView([fix.lat, fix.lng], Math.max(map.getZoom(), 16));
       if (el.logStatus) el.logStatus.textContent = `GPS captured (${fmtAcc(fix.accuracy)}).`;
@@ -710,9 +780,10 @@
       category: el.category?.value || "Other",
       name,
       description: (el.description?.value || "").trim(),
-      lat: lastFix.lat,
-      lng: lastFix.lng,
-      accuracy: lastFix.accuracy,
+      lat: round6(lastFix.lat),
+      lng: round6(lastFix.lng),
+      accuracy: lastFix.source === "pin" ? "" : lastFix.accuracy,
+      source: lastFix.source || getLocationMethod(),
       createdBy: (CFG.createdBy || "").trim(),
     };
 
@@ -726,6 +797,7 @@
       renderMap();
       renderList();
       if (el.logModal?.close) el.logModal.close();
+      clearLogDraftMarker();
       setStatus("Saved a new location.");
     } catch (e) {
       // Some Apps Script setups can write successfully but still fail response parsing/CORS on client.
@@ -735,6 +807,7 @@
         await queueDeleteByClientId(payload.clientId);
         await refresh();
         if (el.logModal?.close) el.logModal.close();
+        clearLogDraftMarker();
         setStatus("Saved.");
       } else {
         await queueAdd({
@@ -744,6 +817,7 @@
           createdAt: payload.createdAt
         });
         if (el.logModal?.close) el.logModal.close();
+        clearLogDraftMarker();
         setStatus("Saved to queue. Tap Sync when online.");
       }
     } finally {
@@ -818,12 +892,40 @@
       el.btnClear?.addEventListener("click", () => { if (el.description) el.description.value = ""; });
       el.btnDictate?.addEventListener("click", startDictation);
       el.name?.addEventListener("input", updateSaveEnabled);
+
+      el.locMethodGps?.addEventListener("change", () => {
+        if (!el.locMethodGps?.checked) return;
+        setLogFix(null);
+        clearLogDraftMarker();
+        updateLocationMethodUI();
+      });
+
+      el.locMethodPin?.addEventListener("change", () => {
+        if (!el.locMethodPin?.checked) return;
+        setLogFix(null);
+        clearLogDraftMarker();
+        updateLocationMethodUI();
+      });
+
+      el.logModal?.addEventListener("close", () => {
+        isLogModalOpen = false;
+        setLogFix(null);
+        clearLogDraftMarker();
+      });
+
+      el.logModal?.addEventListener("cancel", () => {
+        isLogModalOpen = false;
+        setLogFix(null);
+        clearLogDraftMarker();
+      });
     }
 
     el.btnCenterMe?.addEventListener("click", centerOnMe);
 
     window.addEventListener("online", () => setStatus("Online."));
     window.addEventListener("offline", () => setStatus("Offline."));
+
+    map?.on("click", onMapClickForLog);
 
     updatePendingUI();
   }
