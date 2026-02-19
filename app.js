@@ -222,7 +222,7 @@
     const url = `${BACKEND_URL}?token=${encodeURIComponent(API_TOKEN)}`;
     const res = await fetch(url, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      // Avoid CORS preflight against Apps Script by not sending a non-simple Content-Type.
       body: JSON.stringify(payload),
     });
 
